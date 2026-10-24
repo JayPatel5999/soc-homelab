@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>SOC Homelab | Jay Patel</title>
+		<meta
+			name="description"
+			content="A segmented SOC homelab on Proxmox with OPNsense, Active Directory, and Wazuh, with attack-to-detection write-ups." />
+		<style>
+			:root {
+				--bg: #fbfaf7;
+				--card: #ffffff;
+				--text: #2c2c2a;
+				--muted: #5f5e5a;
+				--line: #e3e1d9;
+				--accent: #0f6e56;
+				--accent-bg: #e1f5ee;
+				--warn: #854f0b;
+				--warn-bg: #faeeda;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--bg: #1c1c1a;
+					--card: #262624;
+					--text: #eeede8;
+					--muted: #b4b2a9;
+					--line: #3a3a37;
+					--accent: #5dcaa5;
+					--accent-bg: #04342c;
+					--warn: #fac775;
+					--warn-bg: #412402;
+				}
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				background: var(--bg);
+				color: var(--text);
+				font:
+					16px/1.65 system-ui,
+					-apple-system,
+					"Segoe UI",
+					Roboto,
+					sans-serif;
+			}
+			main {
+				max-width: 900px;
+				margin: 0 auto;
+				padding: 48px 20px 64px;
+			}
+			h1 {
+				font-size: 2rem;
+				margin: 0 0 8px;
+				font-weight: 600;
+			}
+			h2 {
+				font-size: 1.3rem;
+				margin: 48px 0 12px;
+				font-weight: 600;
+			}
+			h3 {
+				font-size: 1.05rem;
+				margin: 0 0 4px;
+				font-weight: 600;
+			}
+			p {
+				margin: 0 0 12px;
+			}
+			a {
+				color: var(--accent);
+			}
+			.lead {
+				font-size: 1.1rem;
+				color: var(--muted);
+				max-width: 640px;
+			}
+			.badge {
+				display: inline-block;
+				padding: 3px 10px;
+				border-radius: 999px;
+				font-size: 0.8rem;
+				background: var(--warn-bg);
+				color: var(--warn);
+				margin-bottom: 14px;
+			}
+			.links {
+				display: flex;
+				gap: 12px;
+				flex-wrap: wrap;
+				margin-top: 18px;
+			}
+			.btn {
+				display: inline-block;
+				padding: 9px 16px;
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				text-decoration: none;
+				background: var(--card);
+				color: var(--text);
+				font-size: 0.95rem;
+			}
+			.btn.primary {
+				background: var(--accent);
+				border-color: var(--accent);
+				color: var(--bg);
+			}
+			.grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+				gap: 14px;
+			}
+			.card {
+				background: var(--card);
+				border: 1px solid var(--line);
+				border-radius: 12px;
+				padding: 16px 18px;
+			}
+			.card p {
+				color: var(--muted);
+				font-size: 0.95rem;
+				margin: 0;
+			}
+			.diagram {
+				background: #fff;
+				border: 1px solid var(--line);
+				border-radius: 12px;
+				padding: 12px;
+				overflow-x: auto;
+			}
+			.diagram svg {
+				width: 100%;
+				height: auto;
+				min-width: 560px;
+				display: block;
+			}
+			.caption {
+				color: var(--muted);
+				font-size: 0.9rem;
+				margin-top: 8px;
+			}
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				font-size: 0.95rem;
+				background: var(--card);
+				border: 1px solid var(--line);
+				border-radius: 12px;
+				overflow: hidden;
+			}
+			th,
+			td {
+				text-align: left;
+				padding: 10px 14px;
+				border-bottom: 1px solid var(--line);
+				vertical-align: top;
+			}
+			th {
+				font-weight: 600;
+				font-size: 0.85rem;
+				color: var(--muted);
+			}
+			tr:last-child td {
+				border-bottom: none;
+			}
+			.tag {
+				font-size: 0.8rem;
+				padding: 2px 8px;
+				border-radius: 6px;
+				background: var(--accent-bg);
+				color: var(--accent);
+				white-space: nowrap;
+			}
+			.tag.plan {
+				background: var(--warn-bg);
+				color: var(--warn);
+			}
+			footer {
+				margin-top: 56px;
+				padding-top: 20px;
+				border-top: 1px solid var(--line);
+				color: var(--muted);
+				font-size: 0.9rem;
+			}
+			@media (max-width: 560px) {
+				h1 {
+					font-size: 1.6rem;
+				}
+				th,
+				td {
+					padding: 8px 10px;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<header>
+				<span class="badge">Rebuild in progress</span>
+				<h1>SOC Homelab</h1>
+				<p class="lead">
+					A single-host lab where I segment a network, run Active Directory and
+					a SIEM, attack my own machines on purpose, and write up how each
+					attack shows up in the logs.
+				</p>
+				<div class="links">
+					<a
+						class="btn primary"
+						href="https://github.com/JayPatel5999/soc-homelab"
+						>View the GitHub repo</a
+					>
+					<a class="btn" href="https://www.linkedin.com/in/pateljayd97"
+						>LinkedIn</a
+					>
+				</div>
+			</header>
+
+			<section>
+				<h2>Why I built it</h2>
+				<p>
+					I am moving from software development into IT support and security
+					operations. Reading about VLANs, firewalls, and detections only goes
+					so far, so I built the environment and break it deliberately.
+					Everything here is documented as it happens, including what goes
+					wrong.
+				</p>
+			</section>
+
+			<section>
+				<h2>What is in it</h2>
+				<div class="grid">
+					<div class="card">
+						<h3>Proxmox VE</h3>
+						<p>One Dell Precision 3420 SFF runs every VM and container.</p>
+					</div>
+					<div class="card">
+						<h3>OPNsense</h3>
+						<p>
+							Routing, VLANs, DHCP, DNS, and Suricata between three network
+							zones.
+						</p>
+					</div>
+					<div class="card">
+						<h3>Active Directory</h3>
+						<p>
+							Windows Server 2022 domain controller with a joined Windows
+							client.
+						</p>
+					</div>
+					<div class="card">
+						<h3>Wazuh</h3>
+						<p>
+							Collects agent and firewall logs, raises alerts, and maps them to
+							MITRE ATT&amp;CK.
+						</p>
+					</div>
+					<div class="card">
+						<h3>Isolated attack zone</h3>
+						<p>
+							Kali and vulnerable targets with no route to home or the internet.
+						</p>
+					</div>
+					<div class="card">
+						<h3>Home services</h3>
+						<p>
+							Jellyfin and a NAS on their own VLAN, reached remotely only
+							through Tailscale.
+						</p>
+					</div>
+				</div>
+			</section>
+
+			<section>
+				<h2>Network design</h2>
+				<div class="diagram">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 820 520"
+						font-family="Arial, Helvetica, sans-serif"
+						role="img">
+						<title>SOC homelab network topology</title>
+						<desc>
+							A Raspberry Pi running Pi-hole, the home router, and a Wi-Fi
+							extender sit upstream. The extender connects by Ethernet to a
+							Proxmox host running an OPNsense firewall VM, which routes to
+							three VLANs: Home, Lab core, and Attack zone.
+						</desc>
+						<defs>
+							<marker
+								id="arrN"
+								viewBox="0 0 10 10"
+								refX="8"
+								refY="5"
+								markerWidth="7"
+								markerHeight="7"
+								orient="auto-start-reverse">
+								<path
+									d="M2 1L8 5L2 9"
+									fill="none"
+									stroke="#444441"
+									stroke-width="1.5"
+									stroke-linecap="round"
+									stroke-linejoin="round" />
+							</marker>
+						</defs>
+
+						<text
+							x="40"
+							y="34"
+							font-size="18"
+							font-weight="bold"
+							fill="#2C2C2A">
+							SOC homelab: network topology
+						</text>
+
+						<rect
+							x="40"
+							y="60"
+							width="180"
+							height="56"
+							rx="8"
+							fill="#F1EFE8"
+							stroke="#5F5E5A"
+							stroke-width="1" />
+						<text
+							x="130"
+							y="82"
+							font-size="14"
+							font-weight="bold"
+							fill="#2C2C2A"
+							text-anchor="middle">
+							Raspberry Pi
+						</text>
+						<text
+							x="130"
+							y="101"
+							font-size="12"
+							fill="#5F5E5A"
+							text-anchor="middle">
+							Pi-hole DNS
+						</text>
+
+						<rect
+							x="320"
+							y="60"
+							width="180"
+							height="56"
+							rx="8"
+							fill="#F1EFE8"
+							stroke="#5F5E5A"
+							stroke-width="1" />
+						<text
+							x="410"
+							y="82"
+							font-size="14"
+							font-weight="bold"
+							fill="#2C2C2A"
+							text-anchor="middle">
+							Home router
+						</text>
+						<text
+							x="410"
+							y="101"
+							font-size="12"
+							fill="#5F5E5A"
+							text-anchor="middle">
+							Internet gateway
+						</text>
+
+						<rect
+							x="600"
+							y="60"
+							width="180"
+							height="56"
+							rx="8"
+							fill="#F1EFE8"
+							stroke="#5F5E5A"
+							stroke-width="1" />
+						<text
+							x="690"
+							y="82"
+							font-size="14"
+							font-weight="bold"
+							fill="#2C2C2A"
+							text-anchor="middle">
+							Wi-Fi extender
+						</text>
+						<text
+							x="690"
+							y="101"
+							font-size="12"
+							fill="#5F5E5A"
+							text-anchor="middle">
+							Ethernet to host
+						</text>
+
+						<line
+							x1="220"
+							y1="88"
+							x2="320"
+							y2="88"
+							stroke="#5F5E5A"
+							stroke-width="1.5" />
+						<line
+							x1="500"
+							y1="88"
+							x2="600"
+							y2="88"
+							stroke="#5F5E5A"
+							stroke-width="1.5"
+							stroke-dasharray="6 4" />
+						<path
+							d="M690 116 L690 150 L480 150 L480 183"
+							fill="none"
+							stroke="#444441"
+							stroke-width="1.5"
+							marker-end="url(#arrN)" />
+
+						<rect
+							x="30"
+							y="135"
+							width="760"
+							height="355"
+							rx="16"
+							fill="none"
+							stroke="#888780"
+							stroke-width="1"
+							stroke-dasharray="6 4" />
+						<text
+							x="50"
+							y="161"
+							font-size="14"
+							font-weight="bold"
+							fill="#2C2C2A">
+							Proxmox host: Dell Precision 3420 SFF
+						</text>
+
+						<rect
+							x="300"
+							y="185"
+							width="220"
+							height="56"
+							rx="8"
+							fill="#F1EFE8"
+							stroke="#5F5E5A"
+							stroke-width="1" />
+						<text
+							x="410"
+							y="207"
+							font-size="14"
+							font-weight="bold"
+							fill="#2C2C2A"
+							text-anchor="middle">
+							OPNsense VM
+						</text>
+						<text
+							x="410"
+							y="226"
+							font-size="12"
+							fill="#5F5E5A"
+							text-anchor="middle">
+							Firewall, DHCP, DNS, Suricata
+						</text>
+
+						<path
+							d="M410 241 L410 298"
+							fill="none"
+							stroke="#444441"
+							stroke-width="1.5"
+							marker-end="url(#arrN)" />
+						<path
+							d="M410 270 L155 270 L155 298"
+							fill="none"
+							stroke="#444441"
+							stroke-width="1.5"
+							marker-end="url(#arrN)" />
+						<path
+							d="M410 270 L665 270 L665 298"
+							fill="none"
+							stroke="#444441"
+							stroke-width="1.5"
+							marker-end="url(#arrN)" />
+
+						<rect
+							x="40"
+							y="300"
+							width="230"
+							height="150"
+							rx="10"
+							fill="#E1F5EE"
+							stroke="#0F6E56"
+							stroke-width="1" />
+						<text
+							x="155"
+							y="326"
+							font-size="14"
+							font-weight="bold"
+							fill="#085041"
+							text-anchor="middle">
+							VLAN 20 Home
+						</text>
+						<text
+							x="155"
+							y="346"
+							font-size="12"
+							fill="#0F6E56"
+							text-anchor="middle">
+							10.10.20.0/24
+						</text>
+						<text
+							x="155"
+							y="378"
+							font-size="13"
+							fill="#085041"
+							text-anchor="middle">
+							Jellyfin
+						</text>
+						<text
+							x="155"
+							y="400"
+							font-size="13"
+							fill="#085041"
+							text-anchor="middle">
+							NAS share (Samba)
+						</text>
+						<text
+							x="155"
+							y="422"
+							font-size="13"
+							fill="#085041"
+							text-anchor="middle">
+							Tailscale subnet router
+						</text>
+
+						<rect
+							x="295"
+							y="300"
+							width="230"
+							height="150"
+							rx="10"
+							fill="#EEEDFE"
+							stroke="#534AB7"
+							stroke-width="1" />
+						<text
+							x="410"
+							y="326"
+							font-size="14"
+							font-weight="bold"
+							fill="#3C3489"
+							text-anchor="middle">
+							VLAN 30 Lab core
+						</text>
+						<text
+							x="410"
+							y="346"
+							font-size="12"
+							fill="#534AB7"
+							text-anchor="middle">
+							10.10.30.0/24
+						</text>
+						<text
+							x="410"
+							y="378"
+							font-size="13"
+							fill="#3C3489"
+							text-anchor="middle">
+							Wazuh server
+						</text>
+						<text
+							x="410"
+							y="400"
+							font-size="13"
+							fill="#3C3489"
+							text-anchor="middle">
+							Domain controller (AD)
+						</text>
+						<text
+							x="410"
+							y="422"
+							font-size="13"
+							fill="#3C3489"
+							text-anchor="middle">
+							Windows client
+						</text>
+
+						<rect
+							x="550"
+							y="300"
+							width="230"
+							height="150"
+							rx="10"
+							fill="#FAECE7"
+							stroke="#993C1D"
+							stroke-width="1" />
+						<text
+							x="665"
+							y="326"
+							font-size="14"
+							font-weight="bold"
+							fill="#712B13"
+							text-anchor="middle">
+							VLAN 40 Attack zone
+						</text>
+						<text
+							x="665"
+							y="346"
+							font-size="12"
+							fill="#993C1D"
+							text-anchor="middle">
+							10.10.40.0/24
+						</text>
+						<text
+							x="665"
+							y="378"
+							font-size="13"
+							fill="#712B13"
+							text-anchor="middle">
+							Kali attacker
+						</text>
+						<text
+							x="665"
+							y="400"
+							font-size="13"
+							fill="#712B13"
+							text-anchor="middle">
+							Vulnerable targets
+						</text>
+						<text
+							x="665"
+							y="422"
+							font-size="13"
+							fill="#712B13"
+							text-anchor="middle">
+							No route to home or internet
+						</text>
+
+						<text x="50" y="476" font-size="12" fill="#5F5E5A">
+							Dashed line: Wi-Fi link. Solid line: Ethernet. VLANs are virtual,
+							inside Proxmox.
+						</text>
+					</svg>
+				</div>
+				<p class="caption">
+					Three VLANs, all virtual inside Proxmox. Traffic from the attack zone
+					has to pass the firewall, so it leaves evidence for the SIEM.
+				</p>
+			</section>
+
+			<section>
+				<h2>How detection works</h2>
+				<div class="diagram">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 820 500"
+						font-family="Arial, Helvetica, sans-serif"
+						role="img">
+						<title>SOC homelab logical layout and detection data flow</title>
+						<desc>
+							Kali and a vulnerable Linux target in the attack zone send traffic
+							through OPNsense to the lab core. Wazuh agents on the domain
+							controller and Windows client, plus syslog from OPNsense, feed the
+							Wazuh server. Alerts are triaged and written up on GitHub.
+						</desc>
+						<defs>
+							<marker
+								id="arrL"
+								viewBox="0 0 10 10"
+								refX="8"
+								refY="5"
+								markerWidth="7"
+								markerHeight="7"
+								orient="auto-start-reverse">
+								<path
+									d="M2 1L8 5L2 9"
+									fill="none"
+									stroke="#444441"
+									stroke-width="1.5"
+									stroke-linecap="round"
+									stroke-linejoin="round" />
+							</marker>
+						</defs>
+
+						<text
+							x="40"
+							y="34"
+							font-size="18"
+							font-weight="bold"
+							fill="#2C2C2A">
+							Logical layout and detection data flow
+						</text>
+
+						<rect
+							x="30"
+							y="70"
+							width="240"
+							height="230"
+							rx="12"
+							fill="#FAECE7"
+							stroke="#993C1D"
+							stroke-width="1" />
+						<text
+							x="50"
+							y="94"
+							font-size="14"
+							font-weight="bold"
+							fill="#712B13">
+							VLAN 40 Attack zone
+						</text>
+						<text x="50" y="112" font-size="12" fill="#993C1D">
+							10.10.40.0/24
+						</text>
+						<rect
+							x="50"
+							y="128"
+							width="200"
+							height="56"
+							rx="8"
+							fill="#FFFFFF"
+							stroke="#993C1D"
+							stroke-width="1" />
+						<text
+							x="150"
+							y="150"
+							font-size="14"
+							font-weight="bold"
+							fill="#712B13"
+							text-anchor="middle">
+							Kali attacker
+						</text>
+						<text
+							x="150"
+							y="168"
+							font-size="12"
+							fill="#993C1D"
+							text-anchor="middle">
+							10.10.40.10
+						</text>
+						<rect
+							x="50"
+							y="204"
+							width="200"
+							height="56"
+							rx="8"
+							fill="#FFFFFF"
+							stroke="#993C1D"
+							stroke-width="1" />
+						<text
+							x="150"
+							y="226"
+							font-size="14"
+							font-weight="bold"
+							fill="#712B13"
+							text-anchor="middle">
+							Linux target
+						</text>
+						<text
+							x="150"
+							y="244"
+							font-size="12"
+							fill="#993C1D"
+							text-anchor="middle">
+							10.10.40.20, Wazuh agent
+						</text>
+						<text x="50" y="286" font-size="12" fill="#993C1D">
+							No route to home or internet
+						</text>
+
+						<rect
+							x="330"
+							y="140"
+							width="160"
+							height="80"
+							rx="8"
+							fill="#F1EFE8"
+							stroke="#5F5E5A"
+							stroke-width="1" />
+						<text
+							x="410"
+							y="170"
+							font-size="14"
+							font-weight="bold"
+							fill="#2C2C2A"
+							text-anchor="middle">
+							OPNsense
+						</text>
+						<text
+							x="410"
+							y="189"
+							font-size="12"
+							fill="#5F5E5A"
+							text-anchor="middle">
+							Firewall rules
+						</text>
+						<text
+							x="410"
+							y="205"
+							font-size="12"
+							fill="#5F5E5A"
+							text-anchor="middle">
+							Suricata IDS
+						</text>
+
+						<rect
+							x="550"
+							y="70"
+							width="240"
+							height="300"
+							rx="12"
+							fill="#EEEDFE"
+							stroke="#534AB7"
+							stroke-width="1" />
+						<text
+							x="570"
+							y="94"
+							font-size="14"
+							font-weight="bold"
+							fill="#3C3489">
+							VLAN 30 Lab core
+						</text>
+						<text x="570" y="112" font-size="12" fill="#534AB7">
+							10.10.30.0/24
+						</text>
+						<rect
+							x="570"
+							y="128"
+							width="190"
+							height="56"
+							rx="8"
+							fill="#FFFFFF"
+							stroke="#534AB7"
+							stroke-width="1" />
+						<text
+							x="665"
+							y="150"
+							font-size="14"
+							font-weight="bold"
+							fill="#3C3489"
+							text-anchor="middle">
+							Domain controller
+						</text>
+						<text
+							x="665"
+							y="168"
+							font-size="12"
+							fill="#534AB7"
+							text-anchor="middle">
+							10.10.30.10, Wazuh agent
+						</text>
+						<rect
+							x="570"
+							y="198"
+							width="190"
+							height="56"
+							rx="8"
+							fill="#FFFFFF"
+							stroke="#534AB7"
+							stroke-width="1" />
+						<text
+							x="665"
+							y="220"
+							font-size="14"
+							font-weight="bold"
+							fill="#3C3489"
+							text-anchor="middle">
+							Windows client
+						</text>
+						<text
+							x="665"
+							y="238"
+							font-size="12"
+							fill="#534AB7"
+							text-anchor="middle">
+							10.10.30.20, Wazuh agent
+						</text>
+						<rect
+							x="570"
+							y="278"
+							width="190"
+							height="64"
+							rx="8"
+							fill="#FFFFFF"
+							stroke="#534AB7"
+							stroke-width="2" />
+						<text
+							x="665"
+							y="302"
+							font-size="14"
+							font-weight="bold"
+							fill="#3C3489"
+							text-anchor="middle">
+							Wazuh server
+						</text>
+						<text
+							x="665"
+							y="320"
+							font-size="12"
+							fill="#534AB7"
+							text-anchor="middle">
+							10.10.30.5, dashboard
+						</text>
+
+						<path
+							d="M250 156 L290 156 L290 170 L328 170"
+							fill="none"
+							stroke="#444441"
+							stroke-width="1.5"
+							marker-end="url(#arrL)" />
+						<path
+							d="M250 232 L290 232 L290 192 L328 192"
+							fill="none"
+							stroke="#444441"
+							stroke-width="1.5"
+							marker-end="url(#arrL)" />
+						<path
+							d="M490 180 L520 180 L520 226 L568 226"
+							fill="none"
+							stroke="#444441"
+							stroke-width="1.5"
+							marker-end="url(#arrL)" />
+						<path
+							d="M490 168 L530 168 L530 156 L568 156"
+							fill="none"
+							stroke="#444441"
+							stroke-width="1.5"
+							marker-end="url(#arrL)" />
+						<path
+							d="M760 156 L778 156 L778 310 L762 310"
+							fill="none"
+							stroke="#6E6C65"
+							stroke-width="1.5"
+							stroke-dasharray="5 4"
+							marker-end="url(#arrL)" />
+						<path
+							d="M760 226 L778 226"
+							fill="none"
+							stroke="#6E6C65"
+							stroke-width="1.5"
+							stroke-dasharray="5 4" />
+						<path
+							d="M410 220 L410 330 L568 330"
+							fill="none"
+							stroke="#6E6C65"
+							stroke-width="1.5"
+							stroke-dasharray="5 4"
+							marker-end="url(#arrL)" />
+
+						<text x="50" y="330" font-size="12" fill="#444441">
+							Solid arrow: attack traffic
+						</text>
+						<text x="50" y="350" font-size="12" fill="#444441">
+							Dashed arrow: logs to Wazuh
+						</text>
+						<text x="330" y="352" font-size="12" fill="#444441">
+							Syslog from firewall and Suricata
+						</text>
+
+						<path
+							d="M730 342 L730 410"
+							fill="none"
+							stroke="#444441"
+							stroke-width="1.5"
+							marker-end="url(#arrL)" />
+						<rect
+							x="550"
+							y="412"
+							width="240"
+							height="56"
+							rx="8"
+							fill="#F1EFE8"
+							stroke="#5F5E5A"
+							stroke-width="1" />
+						<text
+							x="670"
+							y="434"
+							font-size="14"
+							font-weight="bold"
+							fill="#2C2C2A"
+							text-anchor="middle">
+							Alert triage
+						</text>
+						<text
+							x="670"
+							y="452"
+							font-size="12"
+							fill="#5F5E5A"
+							text-anchor="middle">
+							MITRE ATT&amp;CK mapping
+						</text>
+						<path
+							d="M550 440 L492 440"
+							fill="none"
+							stroke="#444441"
+							stroke-width="1.5"
+							marker-end="url(#arrL)" />
+						<rect
+							x="330"
+							y="412"
+							width="160"
+							height="56"
+							rx="8"
+							fill="#F1EFE8"
+							stroke="#5F5E5A"
+							stroke-width="1" />
+						<text
+							x="410"
+							y="434"
+							font-size="14"
+							font-weight="bold"
+							fill="#2C2C2A"
+							text-anchor="middle">
+							GitHub write-up
+						</text>
+						<text
+							x="410"
+							y="452"
+							font-size="12"
+							fill="#5F5E5A"
+							text-anchor="middle">
+							Evidence and lessons
+						</text>
+					</svg>
+				</div>
+				<p class="caption">
+					Agents on the Windows and Linux machines and syslog from OPNsense feed
+					one Wazuh server. Alerts are triaged and written up.
+				</p>
+			</section>
+
+			<section>
+				<h2>Detection scenarios</h2>
+				<table>
+					<thead>
+						<tr>
+							<th>Scenario</th>
+							<th>MITRE ATT&amp;CK</th>
+							<th>Status</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>SSH brute force</td>
+							<td>T1110.001</td>
+							<td><span class="tag plan">Planned</span></td>
+						</tr>
+						<tr>
+							<td>Password spray against Active Directory</td>
+							<td>T1110.003</td>
+							<td><span class="tag plan">Planned</span></td>
+						</tr>
+						<tr>
+							<td>Network scan</td>
+							<td>T1046</td>
+							<td><span class="tag plan">Planned</span></td>
+						</tr>
+						<tr>
+							<td>New local admin account</td>
+							<td>T1136.001</td>
+							<td><span class="tag plan">Planned</span></td>
+						</tr>
+					</tbody>
+				</table>
+				<p class="caption">
+					Each write-up covers the attack, the evidence, the alert, the triage
+					steps, and what the SIEM missed.
+				</p>
+			</section>
+
+			<section>
+				<h2>What I am learning</h2>
+				<div class="grid">
+					<div class="card">
+						<h3>Segmentation</h3>
+						<p>
+							How VLANs and firewall rules decide what an attacker can reach.
+						</p>
+					</div>
+					<div class="card">
+						<h3>Log analysis</h3>
+						<p>Which Windows and Linux events matter, and which are noise.</p>
+					</div>
+					<div class="card">
+						<h3>Triage</h3>
+						<p>Telling a real alert from a tuning problem.</p>
+					</div>
+					<div class="card">
+						<h3>Documentation</h3>
+						<p>Writing findings another analyst can follow.</p>
+					</div>
+				</div>
+			</section>
+
+			<footer>
+				<p>
+					Built by Jay Patel, Brantford, Ontario. Updated as the lab is built.
+					Attack tools run only against machines inside the isolated lab.
+				</p>
+			</footer>
+		</main>
+	</body>
+</html>
